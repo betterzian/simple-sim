@@ -75,20 +75,35 @@ def schedule2(appList, dockerList, nodeList):
 
 def schedule3(appList, dockerList, nodeList):
     beta = [[0 for _ in range(98)] for _ in range(98)]
+    nodeLeftOrRight = [0 for _ in range(len(nodeList))]
+
     for elem in dockerList:
         for i in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[0:48]),100)),98):
             for j in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[48:]),100)),98):
                 beta[i][j] += 1
     print("beta初始化完成")
     count = 0
+    temp = 0
     for nowDocker in dockerList:
         nowPriority = 99999999.0
         nowSelect = -1
-        nowBeta = 0
+        nowBeta = 9999999.9
         betaList = []
         for nowNode in nodeList:
-            enough, priority, betaList= compare3(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
+            enough, priority, betaList = compare2(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
             if enough:
+                if betaList[1] <= (betaList[0]/1.5):
+                    if nodeLeftOrRight[nowNode.id] < -1:
+                        continue
+                    temp = 0 - math.ceil(betaList[0]/betaList[1])
+                if (betaList[1]/1.5) >= betaList[0]:
+                    if nodeLeftOrRight[nowNode.id] > -1:
+                        continue
+                    temp = math.ceil(betaList[1]/betaList[0])
+
+                if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
+                    nowSelect = nowNode
+                    break
                 if beta[betaList[0]][betaList[1]] > nowBeta:
                     nowBeta = beta[betaList[0]][betaList[1]]
                     nowSelect = nowNode
@@ -99,6 +114,7 @@ def schedule3(appList, dockerList, nodeList):
         if nowSelect != -1:
             updateNode(appList, nowDocker, nowSelect)
             updateDocker(appList, nowDocker, nowSelect)
+            nodeLeftOrRight[nowSelect.id] += temp
             count += 1
             for i in range(betaList[0],98):
                 for j in range(betaList[1],98):
@@ -191,16 +207,17 @@ def compare2(resourceRequire, resourceEmpty):
     tempList = [math.ceil(np.percentile(np.array(newList[0:48]),0)),math.ceil(np.percentile(np.array(newList[48:]),0))]
     return True, priority, tempList
 
-def compare3(resourceRequire, resourceEmpty):
-    newList = []
-    priority = 0.0
-    for i in range(len(resourceRequire)):
-        if resourceRequire[i] > resourceEmpty[i]:            return False, 0, []
-        temp = resourceEmpty[i] - resourceRequire[i]
-        newList.append(temp)
-        priority = temp + priority
-    tempList = [math.ceil(np.percentile(np.array(newList[0:48]),100)),math.ceil(np.percentile(np.array(newList[48:]),100))]
-    return True, priority, tempList
+# def compare3(resourceRequire, resourceEmpty):
+#     newList = []
+#     priority = 0.0
+#     for i in range(len(resourceRequire)):
+#         if resourceRequire[i] > resourceEmpty[i]:
+#             return False, 0, []
+#         temp = resourceEmpty[i] - resourceRequire[i]
+#         newList.append(temp)
+#         priority = temp + priority
+#     tempList = [math.ceil(np.percentile(np.array(newList[0:48]),100)),math.ceil(np.percentile(np.array(newList[48:]),100))]
+#     return True, priority, tempList
 
 def updateNode(appList, nowDocker, nowNode):
     nowNode.dockerId.append(nowDocker.id)
