@@ -75,8 +75,6 @@ def schedule2(appList, dockerList, nodeList):
 
 def schedule3(appList, dockerList, nodeList):
     beta = [[0 for _ in range(98)] for _ in range(98)]
-    nodeLeftOrRight = [0 for _ in range(len(nodeList))]
-
     for elem in dockerList:
         for i in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[0:48]),100)),98):
             for j in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[48:]),100)),98):
@@ -92,29 +90,40 @@ def schedule3(appList, dockerList, nodeList):
         for nowNode in nodeList:
             enough, priority, betaList = compare2(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
             if enough:
-                if betaList[1] <= (betaList[0]/1.5):
-                    if nodeLeftOrRight[nowNode.id] < -1:
-                        continue
-                    temp = 0 - math.ceil(betaList[0]/betaList[1])
-                if (betaList[1]/1.5) >= betaList[0]:
-                    if nodeLeftOrRight[nowNode.id] > -1:
-                        continue
-                    temp = math.ceil(betaList[1]/betaList[0])
-
+                if betaList[1] == 0 and betaList[0] > 1:
+                    continue
+                if betaList[0] == 0 and betaList[1] > 1:
+                    continue
+                if betaList[1] <= (betaList[0]/2) and (betaList[1]/2) >= betaList[0]:
+                    continue
                 if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
                     nowSelect = nowNode
                     break
                 if beta[betaList[0]][betaList[1]] > nowBeta:
                     nowBeta = beta[betaList[0]][betaList[1]]
                     nowSelect = nowNode
-                elif beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
+                if beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
                     nowPriority = priority
                     nowSelect = nowNode
+
+        if nowSelect == -1:
+            for nowNode in nodeList:
+                enough, priority, betaList = compare2(appList[nowDocker.appId].resourceRequire,
+                                                      nowNode.resourceEmpty)
+                if enough:
+                    if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
+                        nowSelect = nowNode
+                        break
+                    if beta[betaList[0]][betaList[1]] > nowBeta:
+                        nowBeta = beta[betaList[0]][betaList[1]]
+                        nowSelect = nowNode
+                    if beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
+                        nowPriority = priority
+                        nowSelect = nowNode
 
         if nowSelect != -1:
             updateNode(appList, nowDocker, nowSelect)
             updateDocker(appList, nowDocker, nowSelect)
-            nodeLeftOrRight[nowSelect.id] += temp
             count += 1
             for i in range(betaList[0],98):
                 for j in range(betaList[1],98):
