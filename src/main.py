@@ -9,19 +9,21 @@ import math
 import numpy as np
 
 
+
 def run(appList, dockerList, nodeList, flag):
     if flag == "greedy":
         schedule1(appList, dockerList, nodeList)
-    elif flag == "probability":
+    elif flag == "probability1":
         schedule2(appList, dockerList, nodeList)
-    elif flag == "normal":
+    elif flag == "probability2":
         schedule3(appList, dockerList, nodeList)
+    elif flag == "normal":
+        schedule4(appList, dockerList, nodeList)
     UR = caculateUtilizationRate(appList, dockerList, nodeList)
     writeToExcel(UR, appList, dockerList, nodeList, flag)
 
 
 def schedule1(appList, dockerList, nodeList):  # greedy
-    count = len(dockerList)
     for nowDocker in dockerList:
         nowPriority = 99999999.0
         nowSelect = -1
@@ -38,28 +40,73 @@ def schedule1(appList, dockerList, nodeList):  # greedy
 def schedule2(appList, dockerList, nodeList):
     beta = [[0 for _ in range(98)] for _ in range(98)]
     for elem in dockerList:
-        for i in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[0:48]),95)),98):
-            for j in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[49:]),95)),98):
+        for i in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[0:48]),100)),98):
+            for j in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[48:]),100)),98):
                 beta[i][j] += 1
     print("beta初始化完成")
+    count = 0
     for nowDocker in dockerList:
-        nowPriority = 99999999
+        nowPriority = 99999999.0
         nowSelect = -1
-        priority = []
+        nowBeta = 9999999.9
+        betaList = []
         for nowNode in nodeList:
-            enough, priority = compare2(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
-            if enough and beta[priority[0]][priority[1]] < nowPriority:
-                nowPriority = beta[priority[0]][priority[1]]
-                nowSelect = nowNode
+            enough, priority, betaList= compare2(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
+            if enough:
+                if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
+                    nowSelect = nowNode
+                    break
+                elif beta[betaList[0]][betaList[1]] > nowBeta:
+                    nowBeta = beta[betaList[0]][betaList[1]]
+                    nowSelect = nowNode
+                elif beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
+                    nowPriority = priority
+                    nowSelect = nowNode
+
         if nowSelect != -1:
             updateNode(appList, nowDocker, nowSelect)
             updateDocker(appList, nowDocker, nowSelect)
-            for i in range(priority[0]):
-                for j in range(priority[1]):
+            count += 1
+            for i in range(betaList[0],98):
+                for j in range(betaList[1],98):
                     beta[i][j] -= 1
-
+        if count % 1000 == 0:
+            print(str(count)+"  1")
 
 def schedule3(appList, dockerList, nodeList):
+    beta = [[0 for _ in range(98)] for _ in range(98)]
+    for elem in dockerList:
+        for i in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[0:48]),100)),98):
+            for j in range(math.ceil(np.percentile(np.array(appList[elem.appId].resourceRequire[48:]),100)),98):
+                beta[i][j] += 1
+    print("beta初始化完成")
+    count = 0
+    for nowDocker in dockerList:
+        nowPriority = 99999999.0
+        nowSelect = -1
+        nowBeta = 0
+        betaList = []
+        for nowNode in nodeList:
+            enough, priority, betaList= compare3(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
+            if enough:
+                if beta[betaList[0]][betaList[1]] > nowBeta:
+                    nowBeta = beta[betaList[0]][betaList[1]]
+                    nowSelect = nowNode
+                elif beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
+                    nowPriority = priority
+                    nowSelect = nowNode
+
+        if nowSelect != -1:
+            updateNode(appList, nowDocker, nowSelect)
+            updateDocker(appList, nowDocker, nowSelect)
+            count += 1
+            for i in range(betaList[0],98):
+                for j in range(betaList[1],98):
+                    beta[i][j] -= 1
+        if count % 1000 == 0:
+            print(str(count)+"   2")
+
+def schedule4(appList, dockerList, nodeList):
     for item in dockerList:
         item.set95perResource(appList[item.appId].resourceRequire)
     for nowDocker in dockerList:
@@ -92,7 +139,7 @@ def caculateUtilizationRate(appList, dockerList, nodeList):
 
 
 def writeToExcel(UR, appList, dockerList, nodeList, flag):
-    workbook = xw.Workbook(flag + "_output.xlsx")  # 创建工作簿
+    workbook = xw.Workbook("../data/output/"+flag + "_output.xlsx")  # 创建工作簿
     worksheet1 = workbook.add_worksheet("docker_node")  # 创建子表
     worksheet1.activate()  # 激活表
     URdate = [flag]
@@ -134,12 +181,26 @@ def compare(resourceRequire, resourceEmpty):
 
 def compare2(resourceRequire, resourceEmpty):
     newList = []
+    priority = 0.0
     for i in range(len(resourceRequire)):
         if resourceRequire[i] > resourceEmpty[i]:
-            return False, 0
-        newList.append(resourceEmpty[i] - resourceRequire[i])
+            return False, 0, []
+        temp = resourceEmpty[i] - resourceRequire[i]
+        newList.append(temp)
+        priority = temp + priority
+    tempList = [math.ceil(np.percentile(np.array(newList[0:48]),0)),math.ceil(np.percentile(np.array(newList[48:]),0))]
+    return True, priority, tempList
+
+def compare3(resourceRequire, resourceEmpty):
+    newList = []
+    priority = 0.0
+    for i in range(len(resourceRequire)):
+        if resourceRequire[i] > resourceEmpty[i]:            return False, 0, []
+        temp = resourceEmpty[i] - resourceRequire[i]
+        newList.append(temp)
+        priority = temp + priority
     tempList = [math.ceil(np.percentile(np.array(newList[0:48]),100)),math.ceil(np.percentile(np.array(newList[48:]),100))]
-    return True, tempList
+    return True, priority, tempList
 
 def updateNode(appList, nowDocker, nowNode):
     nowNode.dockerId.append(nowDocker.id)
@@ -182,11 +243,14 @@ if __name__ == "__main__":
         dockerList.append(docker.Docker(int(dockerId[1]), int(appId[1])))
 
     p1 = Process(target=run, args=(appList, dockerList, nodeList, "greedy"))  # 实例化进程对象
-    p2 = Process(target=run, args=(appList, dockerList, nodeList, "probability"))  # 实例化进程对象
-    p3 = Process(target=run, args=(appList, dockerList, nodeList, "normal"))  # 实例化进程对象
+    p2 = Process(target=run, args=(appList, dockerList, nodeList, "probability1"))  # 实例化进程对象
+    p3 = Process(target=run, args=(appList, dockerList, nodeList, "probability2"))  # 实例化进程对象
+    p4 = Process(target=run, args=(appList, dockerList, nodeList, "normal"))  # 实例化进程对象
     p1.start()
     p2.start()
     p3.start()
+    p4.start()
     p1.join()
     p2.join()
     p3.join()
+    p4.join()
