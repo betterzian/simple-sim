@@ -87,29 +87,39 @@ def schedule3(appList, dockerList, nodeList):
         nowSelect = -1
         nowBeta = 9999999.9
         betaList = []
+        tempResult = []
         for nowNode in nodeList:
             enough, priority, betaList = compare2(appList[nowDocker.appId].resourceRequire, nowNode.resourceEmpty)
+            tempResult.append([enough,priority,betaList])
             if enough:
+                if (betaList[1] - betaList[0]) > 6 or (betaList[1] - betaList[0]) < 6:
+                    continue
                 if betaList[1] == 0 and betaList[0] > 1:
                     continue
-                if betaList[0] == 0 and betaList[1] > 1:
+                elif betaList[0] == 0 and betaList[1] > 1:
                     continue
-                if betaList[1] <= (betaList[0]/2) and (betaList[1]/2) >= betaList[0]:
+                elif betaList[1] <= (betaList [0]/2) and (betaList[0] - betaList[1]) >= 1:
                     continue
-                if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
-                    nowSelect = nowNode
-                    break
-                if beta[betaList[0]][betaList[1]] > nowBeta:
-                    nowBeta = beta[betaList[0]][betaList[1]]
-                    nowSelect = nowNode
-                if beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
-                    nowPriority = priority
-                    nowSelect = nowNode
+                elif(betaList[1]/2) >= betaList[0] and (betaList[1] - betaList[0]) >= 1:
+                    continue
+                else:
+                    if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
+                        nowSelect = nowNode
+                        break
+                    if beta[betaList[0]][betaList[1]] > nowBeta:
+                        nowBeta = beta[betaList[0]][betaList[1]]
+                        nowSelect = nowNode
+                    if beta[betaList[0]][betaList[1]] == nowBeta and priority < nowPriority:
+                        nowPriority = priority
+                        nowSelect = nowNode
 
         if nowSelect == -1:
+            i = 0
             for nowNode in nodeList:
-                enough, priority, betaList = compare2(appList[nowDocker.appId].resourceRequire,
-                                                      nowNode.resourceEmpty)
+                enough = tempResult[i][0]
+                priority = tempResult[i][1]
+                betaList = tempResult[i][2]
+                i += 1
                 if enough:
                     if (beta[betaList[0]][betaList[1]] * 1.0 / beta[97][97]) > 0.6:
                         nowSelect = nowNode
