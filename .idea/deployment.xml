@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="vis@10.201.1.117:50000 password (2)" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="vis@10.201.1.117:50000 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/vis/code/simple-sim" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="vis@10.201.1.117:50000 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/vis/code/simple-sim" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
